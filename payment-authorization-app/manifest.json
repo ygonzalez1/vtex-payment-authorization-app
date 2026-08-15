@@ -1,0 +1,23 @@
+{
+  "name": "sxtra-three-ds-app",
+  "vendor": "superxtrapanama",
+  "version": "1.0.0",
+  "title": "Paguelofacil 3DS Payment App",
+  "description": "Hosts the 3DS2 challenge iframe for Paguelofacil card payments in VTEX Checkout",
+  "defaultLocale": "en",
+  "mustUpdateAt": "2019-01-08",
+  "dependencies": {},
+  "billingOptions": {
+    "type": "free"
+  },
+  "builders": {
+    "react": "2.x",
+    "pages": "0.x",
+    "messages": "0.x",
+    "docs": "0.x"
+  },
+  "scripts": {
+    "postreleasy": "vtex publish --public"
+  },
+  "$schema": "https://raw.githubusercontent.com/vtex/node-vtex-api/master/gen/manifest.schema"
+}

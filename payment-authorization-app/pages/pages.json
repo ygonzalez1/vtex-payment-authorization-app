@@ -1,0 +1,7 @@
+{
+  "extensions": {
+    "checkout/transactions/sxtra-three-ds-app": {
+      "component": "index"
+    }
+  }
+}
