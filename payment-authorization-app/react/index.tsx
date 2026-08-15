@@ -20,7 +20,13 @@ type State = {
   errorMessage: string | null
 }
 
-const ALLOWED_ORIGIN = 'https://vtex.paguelofacil.com'
+/** Integrator hosts that serve /3ds/return and postMessage the closure event. */
+const ALLOWED_ORIGINS = new Set([
+  'https://vtex.paguelofacil.com',
+  'https://vtex.pfserver.net',
+  'http://localhost:8088',
+  'http://127.0.0.1:8088',
+])
 
 const parsePayload = (appPayload: string): ThreeDsPayload | null => {
   try {
@@ -28,6 +34,23 @@ const parsePayload = (appPayload: string): ThreeDsPayload | null => {
   } catch {
     return null
   }
+}
+
+const originOf = (url: string): string | null => {
+  try {
+    return new URL(url).origin
+  } catch {
+    return null
+  }
+}
+
+const isAllowedOrigin = (origin: string, url3DSRef: string | null): boolean => {
+  if (ALLOWED_ORIGINS.has(origin)) {
+    return true
+  }
+  // Mock simulator and return share the same integrator host as url3DSRef.
+  const challengeOrigin = url3DSRef ? originOf(url3DSRef) : null
+  return challengeOrigin !== null && challengeOrigin === origin
 }
 
 class PaguelofacilThreeDsApp extends Component<Props, State> {
@@ -60,14 +83,31 @@ class PaguelofacilThreeDsApp extends Component<Props, State> {
     this.setState({ url3DSRef })
 
     this.messageHandler = (e: MessageEvent) => {
-      if (this.messageFired) return
-      if (e.origin !== ALLOWED_ORIGIN) return
-      if (!e.data || e.data.type !== 'transactionValidation.vtex') return
+      if (this.messageFired) {
+        return
+      }
+      if (!e.data || e.data.type !== 'transactionValidation.vtex') {
+        return
+      }
+      // Use url3DSRef from closure -- setState is async and may not have flushed yet.
+      if (!isAllowedOrigin(e.origin, url3DSRef)) {
+        console.warn(
+          '3DS Payment App: ignored transactionValidation.vtex from unexpected origin',
+          e.origin
+        )
+        return
+      }
 
       this.messageFired = true
-      // dispatch: false means fail-closed (validation failed on middle); true or absent means proceed
-      const status = e.data.dispatch !== false
-      window.$(window).trigger('transactionValidation.vtex', [status])
+      // approved: true -> Order Placed; false -> reject and return to payment selection.
+      // Legacy field "dispatch" kept for older return HTML (true/absent = approved).
+      const approved =
+        typeof e.data.approved === 'boolean'
+          ? e.data.approved
+          : e.data.dispatch !== false
+
+      console.log('3DS Payment App: relaying transactionValidation.vtex, approved=', approved)
+      window.$(window).trigger('transactionValidation.vtex', [approved])
     }
 
     window.addEventListener('message', this.messageHandler)
